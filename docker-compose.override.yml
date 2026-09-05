@@ -1,0 +1,19 @@
+# =============================================================================
+# Local development overrides -- applied automatically by `docker compose up`.
+#
+# Runs only the infrastructure containers (Postgres + Redis) so you can develop
+# the API and frontend on the host with hot reload:
+#
+#     docker compose up -d db redis
+#     cd backend  && ./.venv/bin/uvicorn app.main:app --reload --port 8000
+#     cd frontend && npm run dev
+#
+# To exercise the full production-shaped stack instead, bypass this file:
+#     docker compose -f docker-compose.yml up -d --build
+# =============================================================================
+
+services:
+  api:
+    profiles: ["full"]
+  web:
+    profiles: ["full"]
