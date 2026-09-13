@@ -83,12 +83,51 @@ Seeded on first run; **editable at runtime** through Access Management → Roles
 | Zabbix | Complete | Complete | Read only | Read only |
 | Nexus | Complete | Complete | Read only | Read only |
 | Cloud Information | Complete | Complete | Read only | Read only |
-| Task Updates | Complete | Complete | Read only | Read only |
+| Task Updates | Complete | Complete | **Complete** | Read only |
 | Reports | Complete | Complete | Read only | Read only |
 | **Settings** | Complete | Complete | **None** | **None** |
 
 Super Admin's column is *computed*, not stored — which is why it automatically
 covers modules that do not exist yet.
+
+Task Updates is the one module where the standard **User** role holds Complete.
+Filing and editing your own task updates is ordinary work, not an
+administrative act; seeing *other people's* tasks is gated separately, as
+described next.
+
+## Task visibility
+
+The task pages need two different questions answered, and one access level
+cannot answer both — no level grants CREATE/UPDATE without also granting
+MANAGE. So they are kept apart:
+
+| Question | Answered by |
+| -------- | ----------- |
+| What may I do? | the `TASK_UPDATES` access level — VIEW opens the pages, CREATE adds a task, UPDATE edits one |
+| Whose tasks? | **MANAGE on `ACCESS_MANAGEMENT`** — a caller holding it is a *task administrator* |
+
+Reusing the Access Management grant keeps the rule inside the existing model:
+an operator can hand task oversight to a custom role by editing that role's
+permissions, with no code change. It also means the seeded defaults already
+line up — Admin has it, User and Guest do not.
+
+| View | Rows returned |
+| ---- | ------------- |
+| Task Updates (no service filter) | every task, whoever owns it, for any caller who can view the module |
+| A service page | task administrator: all users, optionally filtered to one. Everyone else: their own rows only |
+
+| Action | Rule |
+| ------ | ---- |
+| Edit a task | the owner, or a task administrator. `403` otherwise |
+| File a task for another user | task administrators only; the field is ignored for everyone else |
+| Reassign a task | task administrators only |
+
+A normal user who asks a service page for `user_id=<someone else>` is silently
+pinned to their own rows rather than refused — the filter is a convenience, and
+the scope is not theirs to choose. Hiding the edit icon is *never* the boundary;
+`PATCH` re-checks ownership on every call.
+
+All of this lives in `app/services/task_service.py`.
 
 ## Resolution
 

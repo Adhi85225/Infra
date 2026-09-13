@@ -235,6 +235,81 @@ The full module catalogue. Query `include_inactive` (default `false`).
 
 ---
 
+## Tasks
+
+Governed by the `TASK_UPDATES` module. Which tasks a caller may *see* and *edit*
+is decided by the API, never by the client — see
+[AUTHORIZATION.md](AUTHORIZATION.md#task-visibility).
+
+### `GET /tasks/options` — VIEW
+
+Contents of the two dropdowns, served from the enums so the UI cannot drift:
+
+```json
+{
+  "services": ["Access Management", "DAS", "ILO", "Zabbix", "Nexus", "Servers"],
+  "statuses": ["Created", "Inprogress", "Onhold", "Completed", "Triage"]
+}
+```
+
+### `GET /tasks` — VIEW
+
+Query: `service`, `user_id`, `status`, `date_from`, `date_to`, `search`,
+`sort_by`, `direction` (`asc`/`desc`), `limit` (1–100, default 25), `offset`.
+Returns `Page<Task>`.
+
+**Omitting `service` is the global Task Updates view: every task, whoever owns
+it.** Supplying one is a service page, where a caller who is not a task
+administrator is silently restricted to their own rows — a `user_id` they are
+not entitled to is ignored, not rejected.
+
+`sort_by` accepts `task_date` (default, descending), `reference_number`,
+`site_name`, `description`, `status`, `remarks`, `service` and `user`; anything
+else is a `422`. Results carry a stable `id` tiebreaker so paging through equal
+values cannot repeat or skip a row.
+
+`date_from`/`date_to` are inclusive calendar dates. The quick filters send the
+same date for both.
+
+`search` matches the reference, site, description, remarks, service, status and
+the owner's name or email.
+
+Each row carries `can_edit`, resolved for the calling user.
+
+### `GET /tasks/{task_id}` — VIEW
+
+Returns one `Task`. Readable by anyone who can view the module: the global list
+already exposes every task, so a per-row read restriction would protect nothing.
+
+### `POST /tasks` — CREATE
+
+```json
+{
+  "task_date": "2026-09-13",
+  "description": "Replaced a failed disk",
+  "service": "DAS",
+  "status": "Inprogress",
+  "reference_number": "INC-1024",
+  "site_name": "Chennai DC",
+  "remarks": "Waiting on vendor",
+  "user_id": null
+}
+```
+
+`task_date`, `description` and `service` are required; `status` defaults to
+`Created`. Blank optional strings are stored as `null`.
+
+`user_id` names the owner and is honoured **only** for a task administrator.
+For anyone else it is ignored and the task is filed against the caller.
+
+### `PATCH /tasks/{task_id}` — UPDATE
+
+Partial: only the fields present are changed. `403` unless the caller owns the
+task or is a task administrator. Reassignment via `user_id` is administrative
+and ignored for everyone else.
+
+---
+
 ## Audit
 
 ### `GET /audit-logs` — VIEW on `ACCESS_MANAGEMENT`

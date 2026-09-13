@@ -124,6 +124,7 @@ def _database() -> None:
 # deactivate a module and add a module, so leaving any of it in place lets one
 # test change the outcome of another.
 _VOLATILE_TABLES = (
+    "tasks",
     "audit_logs",
     "password_history",
     "password_reset_tokens",

@@ -116,3 +116,46 @@ class AuditAction(StrEnum):
     ROLE_UPDATED = "ROLE_UPDATED"
     ROLE_DELETED = "ROLE_DELETED"
     PERMISSION_DENIED = "PERMISSION_DENIED"
+    TASK_CREATED = "TASK_CREATED"
+    TASK_UPDATED = "TASK_UPDATED"
+
+
+class TaskService(StrEnum):
+    """The service a task update belongs to (dropdown **D1**).
+
+    The stored value *is* the label the user sees. These strings are part of the
+    API contract and are rendered verbatim in the UI, so they must not be
+    reworded -- see :class:`TaskStatus` for the same reasoning.
+    """
+
+    ACCESS_MANAGEMENT = "Access Management"
+    DAS = "DAS"
+    ILO = "ILO"
+    ZABBIX = "Zabbix"
+    NEXUS = "Nexus"
+    SERVERS = "Servers"
+
+    @property
+    def slug(self) -> str:
+        """URL segment for this service's page (``/task-updates/<slug>``)."""
+        return self.name.lower().replace("_", "-")
+
+    @classmethod
+    def from_slug(cls, slug: str) -> TaskService | None:
+        return next((member for member in cls if member.slug == slug), None)
+
+
+class TaskStatus(StrEnum):
+    """Progress of a task update (dropdown **D2**).
+
+    ``Inprogress`` and ``Onhold`` are deliberately spelled as single words: the
+    value is stored, filtered and displayed unchanged, so introducing a separate
+    display label ("In Progress") would create two spellings of one status and
+    break filters written against the other.
+    """
+
+    CREATED = "Created"
+    INPROGRESS = "Inprogress"
+    ONHOLD = "Onhold"
+    COMPLETED = "Completed"
+    TRIAGE = "Triage"

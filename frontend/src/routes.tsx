@@ -10,7 +10,7 @@
  * module to the backend registry gives it a guarded route automatically.
  */
 
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
 import { useAuth } from '@/auth/AuthContext';
@@ -27,6 +27,8 @@ import { ModulePlaceholderPage } from '@/pages/ModulePlaceholderPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { ServiceTasksPage } from '@/pages/tasks/ServiceTasksPage';
+import { TaskUpdatesPage } from '@/pages/TaskUpdatesPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, initialising } = useAuth();
@@ -66,6 +68,9 @@ function RequireModule({ moduleKey, children }: { moduleKey: string; children: R
 function ModuleRoute() {
   const { permissions } = useAuth();
   const location = useLocation();
+  // Set only on the `/task-updates/:serviceSlug` route below; the service pages
+  // share this module's permission rather than declaring one of their own.
+  const { serviceSlug } = useParams<{ serviceSlug: string }>();
 
   const module = moduleForRoute(permissions, location.pathname);
   if (!module) return <NotFoundPage />;
@@ -76,6 +81,12 @@ function ModuleRoute() {
         <AccessManagementPage />
       ) : module.module_key === 'SETTINGS' ? (
         <SettingsPage />
+      ) : module.module_key === 'TASK_UPDATES' ? (
+        serviceSlug ? (
+          <ServiceTasksPage />
+        ) : (
+          <TaskUpdatesPage />
+        )
       ) : (
         <ModulePlaceholderPage />
       )}
@@ -123,6 +134,9 @@ export function AppRoutes() {
         {moduleRoutes.map((route) => (
           <Route key={route} path={route} element={<ModuleRoute />} />
         ))}
+        {/* Service views live under the Task Updates module and are guarded by
+            its permission -- `moduleForRoute` matches the route prefix. */}
+        <Route path="/task-updates/:serviceSlug" element={<ModuleRoute />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 

@@ -13,6 +13,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ACCESS_LABELS, accessibleModules } from '@/auth/permissions';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { SERVICE_SLUGS, TASK_SERVICES } from '@/lib/types';
 
 function Initials({ name }: { name: string }) {
   const initials = name
@@ -39,31 +40,63 @@ export function Layout() {
 
   const visible = accessibleModules(permissions);
 
+  // Task Updates is the one module with sub-pages, so it gets a nested list of
+  // its services. Shown only while the user is inside the module, to keep the
+  // sidebar from growing by six entries everywhere else.
+  const inTaskUpdates = location.pathname.startsWith('/task-updates');
+
   const navigation = (
     <nav aria-label="Modules" className="flex flex-col gap-0.5 p-3">
       {visible.map((permission) => (
-        <NavLink
-          key={permission.module_key}
-          to={permission.route}
-          onClick={() => setNavOpen(false)}
-          className={({ isActive }) =>
-            `group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-              isActive
-                ? 'bg-brand-50 font-semibold text-brand-800'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`
-          }
-        >
-          <span aria-hidden="true" className="w-5 text-base leading-none">
-            {permission.icon}
-          </span>
-          <span className="min-w-0 flex-1 truncate">{permission.module_name}</span>
-          {!permission.is_implemented && (
-            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-              soon
+        <div key={permission.module_key}>
+          <NavLink
+            to={permission.route}
+            end={permission.module_key === 'TASK_UPDATES'}
+            onClick={() => setNavOpen(false)}
+            className={({ isActive }) =>
+              `group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                isActive
+                  ? 'bg-brand-50 font-semibold text-brand-800'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`
+            }
+          >
+            <span aria-hidden="true" className="w-5 text-base leading-none">
+              {permission.icon}
             </span>
+            <span className="min-w-0 flex-1 truncate">{permission.module_name}</span>
+            {!permission.is_implemented && (
+              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                soon
+              </span>
+            )}
+          </NavLink>
+
+          {permission.module_key === 'TASK_UPDATES' && inTaskUpdates && (
+            <div className="mb-1 ml-5 border-l border-slate-200 pl-3">
+              <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide
+                            text-slate-400">
+                Services
+              </p>
+              {TASK_SERVICES.map((service) => (
+                <NavLink
+                  key={service}
+                  to={`/task-updates/${SERVICE_SLUGS[service]}`}
+                  onClick={() => setNavOpen(false)}
+                  className={({ isActive }) =>
+                    `block truncate rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      isActive
+                        ? 'bg-brand-50 font-semibold text-brand-800'
+                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                    }`
+                  }
+                >
+                  {service}
+                </NavLink>
+              ))}
+            </div>
           )}
-        </NavLink>
+        </div>
       ))}
     </nav>
   );

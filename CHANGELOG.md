@@ -7,6 +7,52 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+**Task Updates module**
+
+_Task Updates page_
+- New `/task-updates` page listing **every** team member's task updates, with
+  the T1 columns: Sl. No., Date, Case/Work Order/Jira number, Site Name,
+  Description/Subject, Status, Remarks, Service and User.
+- Server-side quick search across the reference, site, description, remarks,
+  service, status and the owner's name — and quick date filters for Today,
+  Yesterday and a custom date.
+- Every column sorts in both directions, defaulting to newest first, and
+  combines correctly with search, filters and paging.
+
+_Service pages_
+- `/task-updates/{service}` for Access Management, DAS, ILO, Zabbix, Nexus and
+  Servers. All six are the same T1 component with the service passed as a
+  filter, plus an Action column carrying the edit control.
+- Administrators see every user's tasks and get a user filter; everyone else
+  sees only their own — enforced by the API, not by the UI.
+
+_Add & edit_
+- One dialog for both, so validation and the field list cannot drift.
+- Case, work-order and Jira numbers share a single generic `reference_number`
+  column rather than three mostly-empty ones.
+
+_API_
+- `GET /tasks`, `GET /tasks/{id}`, `POST /tasks`, `PATCH /tasks/{id}` and
+  `GET /tasks/options`, governed by the `TASK_UPDATES` module.
+- Visibility and edit rights are resolved server-side; each row carries a
+  `can_edit` flag so the UI never re-derives the rule.
+- Ownership cannot be forged: a non-administrator naming another `user_id` on
+  create, or attempting a reassignment, is ignored rather than obeyed.
+
+_Authorization_
+- Whether you may act comes from the `TASK_UPDATES` access level; **whose**
+  tasks you may see and edit comes from MANAGE on `ACCESS_MANAGEMENT`. No new
+  authorization concept was introduced, and task oversight stays grantable to a
+  custom role without a code change.
+- The **User** role's `TASK_UPDATES` grant is raised to Complete so standard
+  users can file and edit their own tasks. Migration `0003` applies this only
+  where the seeded default is untouched.
+
+_Database_
+- Migration `0003_task_updates` adds the `tasks` table, indexed on
+  `(service, user_id, task_date)` for the service pages.
+
+
 **Role management & dashboard authorization**
 
 _Roles_

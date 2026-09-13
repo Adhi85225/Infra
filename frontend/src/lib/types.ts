@@ -110,3 +110,69 @@ export interface AuditLogEntry {
   context: Record<string, unknown> | null;
   created_at: string;
 }
+
+// --- Task updates ----------------------------------------------------------
+
+/**
+ * Dropdown D1. The value *is* the label -- the API stores and filters on these
+ * exact strings, so they must not be reworded here.
+ */
+export const TASK_SERVICES = [
+  'Access Management',
+  'DAS',
+  'ILO',
+  'Zabbix',
+  'Nexus',
+  'Servers',
+] as const;
+
+export type TaskService = (typeof TASK_SERVICES)[number];
+
+/** Dropdown D2. Single-word spellings are deliberate; see D1. */
+export const TASK_STATUSES = [
+  'Created',
+  'Inprogress',
+  'Onhold',
+  'Completed',
+  'Triage',
+] as const;
+
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+/** URL segment for each service page, mirroring `TaskService.slug` on the API. */
+export const SERVICE_SLUGS: Record<TaskService, string> = {
+  'Access Management': 'access-management',
+  DAS: 'das',
+  ILO: 'ilo',
+  Zabbix: 'zabbix',
+  Nexus: 'nexus',
+  Servers: 'servers',
+};
+
+export function serviceFromSlug(slug: string | undefined): TaskService | undefined {
+  if (!slug) return undefined;
+  return TASK_SERVICES.find((service) => SERVICE_SLUGS[service] === slug);
+}
+
+export interface Task {
+  id: string;
+  task_date: string;
+  reference_number: string | null;
+  site_name: string | null;
+  description: string;
+  status: TaskStatus;
+  remarks: string | null;
+  service: TaskService;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  created_at: string;
+  updated_at: string;
+  /** Resolved by the API for the signed-in caller. Never re-derived here. */
+  can_edit: boolean;
+}
+
+export interface TaskOptions {
+  services: TaskService[];
+  statuses: TaskStatus[];
+}

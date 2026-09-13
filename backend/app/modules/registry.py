@@ -192,7 +192,12 @@ MODULE_DEFINITIONS: tuple[ModuleDefinition, ...] = (
         route="/task-updates",
         description="Team task tracking and status updates.",
         sort_order=100,
-        defaults=_defaults(),
+        is_implemented=True,
+        # Standard users get COMPLETE: filing and editing your own task updates
+        # is ordinary work, not an administrative act. Seeing *other* people's
+        # tasks on the service pages is gated separately, by MANAGE on
+        # ACCESS_MANAGEMENT -- see app/services/task_service.py.
+        defaults=_defaults(user=AccessLevel.COMPLETE),
     ),
     ModuleDefinition(
         key="REPORTS",
