@@ -1,5 +1,7 @@
 # ---------------------------------------------------------------------------
 # Secrets -- NEVER commit real values. Only .env.example is tracked.
+# Local development credentials written by `python -m app.db.seed_dev`.
+DEV_CREDENTIALS.txt
 # ---------------------------------------------------------------------------
 .env
 .env.*
