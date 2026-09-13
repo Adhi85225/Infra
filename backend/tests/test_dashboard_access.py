@@ -30,6 +30,7 @@ ALL_MODULES = {
     "ILO_INVENTORY",
     "ZABBIX",
     "NEXUS",
+    "SERVERS",
     "CLOUD_INFORMATION",
     "TASK_UPDATES",
     "REPORTS",

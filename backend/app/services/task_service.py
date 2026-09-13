@@ -26,10 +26,10 @@ stated requirement, and it is expressed here by ``service=None`` meaning
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import Request
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -336,6 +336,164 @@ async def update_task(
     return task
 
 
-def options() -> tuple[list[str], list[str]]:
-    """Contents of dropdowns D1 (services) and D2 (statuses), in display order."""
-    return [service.value for service in TaskService], [status.value for status in TaskStatus]
+# ---------------------------------------------------------------------------
+# Dashboard analytics
+# ---------------------------------------------------------------------------
+
+#: Days of history the trend chart covers when the date filter picks a single
+#: day. A one-point line is not a trend, so the window is widened for the time
+#: axis only -- every other filter still applies.
+TREND_WINDOW_DAYS = 14
+
+#: How many rows the "Recent tasks" panel shows.
+RECENT_LIMIT = 8
+
+
+def analytics_scope(
+    *, viewer: User, admin: bool, requested_user_id: uuid.UUID | None
+) -> uuid.UUID | None:
+    """Owner filter for the dashboard.
+
+    The dashboard is a *global* overview, matching the Task Updates page: every
+    caller sees every task, and ``service`` here is an ordinary filter rather
+    than the service-page restriction. Only a task administrator may narrow to
+    one user, so the filter the UI shows them is the filter the API honours.
+    """
+    return requested_user_id if admin else None
+
+
+async def analytics(
+    db: AsyncSession,
+    *,
+    viewer: User,
+    admin: bool,
+    service: TaskService | None = None,
+    user_id: uuid.UUID | None = None,
+    status: TaskStatus | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: str | None = None,
+) -> dict:
+    """Every figure the dashboard needs, in one round trip.
+
+    Aggregation happens in PostgreSQL: the browser never receives the task rows
+    it would otherwise have to count, so the dashboard stays flat as the table
+    grows. Four grouped queries plus one small row fetch, rather than one query
+    per widget.
+    """
+    scoped_user_id = analytics_scope(viewer=viewer, admin=admin, requested_user_id=user_id)
+
+    filters = {
+        "service": service,
+        "user_id": scoped_user_id,
+        "status": status,
+        "date_from": date_from,
+        "date_to": date_to,
+        "search": search,
+    }
+
+    def base(selectable):
+        joined = selectable.select_from(Task).join(User, User.id == Task.user_id)
+        return _apply_filters(joined, **filters)
+
+    # --- counts by status (drives both the KPI cards and the donut) ---------
+    status_rows = (
+        await db.execute(base(select(Task.status, func.count())).group_by(Task.status))
+    ).all()
+    by_status = {str(row[0]): int(row[1]) for row in status_rows}
+
+    # --- counts by service (the horizontal bar chart) -----------------------
+    service_rows = (
+        await db.execute(base(select(Task.service, func.count())).group_by(Task.service))
+    ).all()
+    by_service = {str(row[0]): int(row[1]) for row in service_rows}
+
+    # --- activity over time -------------------------------------------------
+    # A single-day filter would give a one-point line, so the trend widens to a
+    # window ending on that day. Service, status, user and search still apply.
+    trend_to = date_to or date.today()
+    if date_from is not None and date_to is not None and date_from != date_to:
+        trend_from = date_from
+    else:
+        trend_from = trend_to - timedelta(days=TREND_WINDOW_DAYS - 1)
+
+    trend_filters = {**filters, "date_from": trend_from, "date_to": trend_to}
+    trend_rows = (
+        await db.execute(
+            _apply_filters(
+                select(
+                    Task.task_date,
+                    func.count(),
+                    # "Completed" means "dated this day and now closed": there is
+                    # no completion timestamp on the row, and inventing one would
+                    # be fabricating history.
+                    func.count(case((Task.status == TaskStatus.COMPLETED, 1))),
+                )
+                .select_from(Task)
+                .join(User, User.id == Task.user_id),
+                **trend_filters,
+            )
+            .group_by(Task.task_date)
+            .order_by(Task.task_date)
+        )
+    ).all()
+    counted = {row[0]: (int(row[1]), int(row[2])) for row in trend_rows}
+
+    # Every day in the window appears, including the quiet ones -- a line that
+    # skips empty days misrepresents the shape of the activity.
+    trend = []
+    cursor = trend_from
+    while cursor <= trend_to:
+        created, completed = counted.get(cursor, (0, 0))
+        trend.append({"date": cursor, "created": created, "completed": completed})
+        cursor += timedelta(days=1)
+
+    # --- recent rows ---------------------------------------------------------
+    recent = (
+        (
+            await db.execute(
+                _apply_filters(select(Task).join(User, User.id == Task.user_id), **filters)
+                .options(selectinload(Task.user))
+                .order_by(Task.task_date.desc(), Task.created_at.desc(), Task.id.desc())
+                .limit(RECENT_LIMIT)
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+
+    return {
+        "total": sum(by_status.values()),
+        # Every status and service is present, including the zeroes: a KPI card
+        # or bar that vanishes when it hits nought is worse than one showing 0.
+        "by_status": [
+            {"status": member.value, "count": by_status.get(member.value, 0)}
+            for member in TaskStatus
+        ],
+        "by_service": [
+            {
+                "service": member.value,
+                "module_key": member.module_key,
+                "count": by_service.get(member.value, 0),
+            }
+            for member in TaskService
+        ],
+        "trend": trend,
+        "trend_from": trend_from,
+        "trend_to": trend_to,
+        "recent": list(recent),
+    }
+
+
+def options() -> dict:
+    """Dropdown contents D1/D2, plus where each service's tasks are shown.
+
+    The service -> module mapping is served rather than hardcoded in the client
+    so the two cannot disagree about which existing page owns a service.
+    """
+    return {
+        "services": [service.value for service in TaskService],
+        "statuses": [status.value for status in TaskStatus],
+        "service_modules": {service.value: service.module_key for service in TaskService},
+    }

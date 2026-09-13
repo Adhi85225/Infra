@@ -12,6 +12,7 @@ import sqlalchemy as sa
 from app.models import Module, Role, RoleModulePermission
 from app.models.enums import AccessLevel, ModuleAction, highest, level_allows
 from app.services import permission_service
+from app.modules.registry import MODULE_DEFINITIONS
 from tests.conftest import (
     ADMIN_PASSWORD,
     GUEST_PASSWORD,
@@ -57,7 +58,7 @@ class TestAccessLevelAlgebra:
 class TestPermissionResolution:
     async def test_superadmin_gets_complete_on_everything(self, db, superadmin):
         permissions = await permission_service.resolve_permissions(db, superadmin)
-        assert len(permissions) == 12
+        assert len(permissions) == len(MODULE_DEFINITIONS)
         assert all(p.access_level is AccessLevel.COMPLETE for p in permissions.values())
 
     async def test_superadmin_access_is_implicit_not_stored(self, db, superadmin):
@@ -197,7 +198,7 @@ class TestPermissionsOverTheApi:
         """
         headers = await auth_headers(client, guest.email, GUEST_PASSWORD)
         body = (await client.get("/api/v1/auth/me", headers=headers)).json()
-        assert len(body["permissions"]) == 12
+        assert len(body["permissions"]) == len(MODULE_DEFINITIONS)
 
     async def test_view_is_enforced_server_side(self, client, guest):
         headers = await auth_headers(client, guest.email, GUEST_PASSWORD)

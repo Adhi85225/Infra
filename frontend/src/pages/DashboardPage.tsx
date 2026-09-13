@@ -1,10 +1,12 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '@/auth/AuthContext';
-import { accessibleModules } from '@/auth/permissions';
+import { accessibleModules, canView, toPermissionMap } from '@/auth/permissions';
 import { AccessBadge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/States';
 import type { Permission } from '@/lib/types';
+import { TaskAnalytics } from './dashboard/TaskAnalytics';
 
 /**
  * Cards are generated from the server's effective permission map.
@@ -48,6 +50,10 @@ function ModuleCard({ permission }: { permission: Permission }) {
 export function DashboardPage() {
   const { user, permissions } = useAuth();
 
+  // Derived from `permissions` rather than taken separately from the context,
+  // so the grid and the analytics below can never disagree about access.
+  const permissionMap = useMemo(() => toPermissionMap(permissions), [permissions]);
+
   // Effective access across every assigned role, resolved server-side.
   const modules = accessibleModules(permissions).filter(
     (permission) => permission.module_key !== 'DASHBOARD',
@@ -80,6 +86,12 @@ export function DashboardPage() {
             <ModuleCard key={permission.module_key} permission={permission} />
           ))}
         </div>
+      )}
+
+      {/* Added below the existing tool grid, not in place of it. Hidden
+          entirely from anyone who cannot open Task Updates. */}
+      {canView(permissionMap, 'TASK_UPDATES') && (
+        <TaskAnalytics permissionMap={permissionMap} permissions={permissions} />
       )}
     </div>
   );

@@ -109,3 +109,46 @@ class TaskOptions(BaseModel):
 
     services: list[str]
     statuses: list[str]
+    #: Service -> the **existing** module whose page shows its tasks, e.g.
+    #: ``{"DAS": "DAS_ONBOARDING"}``. Served so the client never hardcodes which
+    #: page owns a service.
+    service_modules: dict[str, str]
+
+
+class StatusCount(BaseModel):
+    status: TaskStatus
+    count: int
+
+
+class ServiceCount(BaseModel):
+    service: TaskService
+    #: The existing module whose page this bar links to.
+    module_key: str
+    count: int
+
+
+class TrendPoint(BaseModel):
+    date: date
+    #: Tasks dated this day.
+    created: int
+    #: Of those, the ones now in `Completed`. There is no completion timestamp
+    #: on a task, so this is "dated then, closed now" rather than "closed then".
+    completed: int
+
+
+class TaskAnalytics(BaseModel):
+    """Everything the dashboard renders, aggregated in the database.
+
+    One response rather than one request per widget, so the filters cannot get
+    out of step between charts and the browser never receives rows just to
+    count them.
+    """
+
+    total: int
+    by_status: list[StatusCount]
+    by_service: list[ServiceCount]
+    trend: list[TrendPoint]
+    #: The window the trend covers, which widens past a single-day filter.
+    trend_from: date
+    trend_to: date
+    recent: list[TaskSummary]

@@ -23,7 +23,7 @@ from app.models.enums import ModuleAction, TaskService, TaskStatus
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.common import Page
-from app.schemas.task import TaskCreate, TaskOptions, TaskSummary, TaskUpdate
+from app.schemas.task import TaskAnalytics, TaskCreate, TaskOptions, TaskSummary, TaskUpdate
 from app.services import task_service
 
 MODULE = task_service.MODULE
@@ -58,8 +58,54 @@ def _summary(task: Task, *, viewer: User, admin: bool) -> TaskSummary:
     summary="Service (D1) and status (D2) dropdown options",
 )
 async def get_options() -> TaskOptions:
-    services, statuses = task_service.options()
-    return TaskOptions(services=services, statuses=statuses)
+    return TaskOptions(**task_service.options())
+
+
+@router.get(
+    "/analytics",
+    response_model=TaskAnalytics,
+    summary="Aggregated task figures for the dashboard",
+)
+async def get_analytics(
+    db: DbSession,
+    viewer: Annotated[ActiveUser, Depends(require_access(MODULE, ModuleAction.VIEW))],
+    service: TaskService | None = None,
+    user_id: uuid.UUID | None = None,
+    status: TaskStatus | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: Annotated[str | None, Query(max_length=200)] = None,
+) -> TaskAnalytics:
+    """Counts by status and service, activity over time, and the latest rows.
+
+    Aggregated in PostgreSQL and returned in one response, so the dashboard
+    neither downloads the task table nor issues a request per widget.
+
+    A global overview: like the Task Updates page it spans every user, and
+    ``service`` is an ordinary filter rather than the service-page restriction.
+    ``user_id`` is honoured only for a task administrator.
+    """
+    admin = await task_service.is_task_admin(db, viewer)
+    data = await task_service.analytics(
+        db,
+        viewer=viewer,
+        admin=admin,
+        service=service,
+        user_id=user_id,
+        status=status,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
+    )
+    return TaskAnalytics(
+        total=data["total"],
+        by_status=data["by_status"],
+        by_service=data["by_service"],
+        trend=data["trend"],
+        trend_from=data["trend_from"],
+        trend_to=data["trend_to"],
+        recent=[_summary(task, viewer=viewer, admin=admin) for task in data["recent"]],
+    )
 
 
 @router.get(

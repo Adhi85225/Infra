@@ -248,9 +248,22 @@ Contents of the two dropdowns, served from the enums so the UI cannot drift:
 ```json
 {
   "services": ["Access Management", "DAS", "ILO", "Zabbix", "Nexus", "Servers"],
-  "statuses": ["Created", "Inprogress", "Onhold", "Completed", "Triage"]
+  "statuses": ["Created", "Inprogress", "Onhold", "Completed", "Triage"],
+  "service_modules": {
+    "Access Management": "ACCESS_MANAGEMENT",
+    "DAS": "DAS_ONBOARDING",
+    "ILO": "ILO_INVENTORY",
+    "Zabbix": "ZABBIX",
+    "Nexus": "NEXUS",
+    "Servers": "SERVERS"
+  }
 }
 ```
+
+`service_modules` says which **existing** module page shows each service's
+tasks. Task Updates is a cross-service layer, not a parent of the services: a
+`DAS` task appears on the existing DAS Onboarding page. Served rather than
+hardcoded in the client so the two cannot disagree.
 
 ### `GET /tasks` — VIEW
 
@@ -301,6 +314,41 @@ already exposes every task, so a per-row read restriction would protect nothing.
 
 `user_id` names the owner and is honoured **only** for a task administrator.
 For anyone else it is ignored and the task is filed against the caller.
+
+### `GET /tasks/analytics` — VIEW
+
+Every figure the dashboard renders, aggregated in PostgreSQL and returned
+together, so no widget fetches for itself and the browser never receives task
+rows in order to count them.
+
+Query: `service`, `user_id`, `status`, `date_from`, `date_to`, `search` — the
+same filters as `GET /tasks`.
+
+```json
+{
+  "total": 128,
+  "by_status": [{"status": "Created", "count": 18}, "…"],
+  "by_service": [{"service": "DAS", "module_key": "DAS_ONBOARDING", "count": 21}, "…"],
+  "trend": [{"date": "2026-09-01", "created": 3, "completed": 1}, "…"],
+  "trend_from": "2026-08-31",
+  "trend_to": "2026-09-13",
+  "recent": ["…Task…"]
+}
+```
+
+Every status and service is present even at zero, so a KPI card or bar never
+vanishes when its count drops to nought.
+
+A **global** overview, like the Task Updates page: figures span every user, and
+`service` is an ordinary filter rather than the service-page restriction.
+`user_id` is honoured only for a task administrator.
+
+`trend` has one point per day with no gaps, so a quiet day is drawn as a dip
+rather than skipped. A single-day date filter would give a one-point line, so
+the trend widens to a 14-day window ending on that day — `trend_from`/`trend_to`
+report what it actually covers. Every other filter still applies. `completed`
+counts tasks *dated* that day that are *now* closed: there is no completion
+timestamp on a task, and inventing one would fabricate history.
 
 ### `PATCH /tasks/{task_id}` — UPDATE
 

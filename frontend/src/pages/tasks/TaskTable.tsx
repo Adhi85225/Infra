@@ -103,10 +103,17 @@ function SortHeader({
 export function TaskTable({
   service,
   permissionMap,
+  initialStatus = '',
+  initialDateFilter = 'all',
+  initialCustomDate = '',
 }: {
   /** Undefined renders the global Task Updates view. */
   service?: TaskService;
   permissionMap: PermissionMap;
+  /** Opening filters, used when the dashboard drills through to a subset. */
+  initialStatus?: TaskStatus | '';
+  initialDateFilter?: DateFilter;
+  initialCustomDate?: string;
 }) {
   const { notify } = useToast();
 
@@ -120,9 +127,9 @@ export function TaskTable({
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState('');
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
-  const [customDate, setCustomDate] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
+  const [dateFilter, setDateFilter] = useState<DateFilter>(initialDateFilter);
+  const [customDate, setCustomDate] = useState(initialCustomDate);
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>(initialStatus);
   const [userFilter, setUserFilter] = useState('');
   const [sortBy, setSortBy] = useState('task_date');
   const [direction, setDirection] = useState<'asc' | 'desc'>('desc');

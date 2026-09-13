@@ -82,6 +82,7 @@ Seeded on first run; **editable at runtime** through Access Management → Roles
 | ILO Inventory | Complete | Complete | Read only | Read only |
 | Zabbix | Complete | Complete | Read only | Read only |
 | Nexus | Complete | Complete | Read only | Read only |
+| Servers | Complete | Complete | Read only | Read only |
 | Cloud Information | Complete | Complete | Read only | Read only |
 | Task Updates | Complete | Complete | **Complete** | Read only |
 | Reports | Complete | Complete | Read only | Read only |
@@ -114,7 +115,17 @@ line up — Admin has it, User and Guest do not.
 | View | Rows returned |
 | ---- | ------------- |
 | Task Updates (no service filter) | every task, whoever owns it, for any caller who can view the module |
-| A service page | task administrator: all users, optionally filtered to one. Everyone else: their own rows only |
+| An existing service page | task administrator: all users, optionally filtered to one. Everyone else: their own rows only |
+| Dashboard analytics | a global overview like Task Updates — figures span every user; only a task administrator may narrow to one |
+
+"Service page" means the module page that already existed: `DAS` tasks appear on
+**DAS Onboarding** (`/das-onboarding`), `Zabbix` tasks on **Zabbix**
+(`/zabbix`), and so on. Task Updates adds no service routes of its own; the
+mapping lives in `_SERVICE_MODULES` in `app/models/enums.py`.
+
+On the dashboard, `service` is an ordinary filter rather than the service-page
+restriction — it narrows an overview the caller is already entitled to see, so
+it does not scope by owner.
 
 | Action | Rule |
 | ------ | ---- |

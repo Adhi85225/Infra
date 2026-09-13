@@ -139,19 +139,29 @@ export const TASK_STATUSES = [
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-/** URL segment for each service page, mirroring `TaskService.slug` on the API. */
-export const SERVICE_SLUGS: Record<TaskService, string> = {
-  'Access Management': 'access-management',
-  DAS: 'das',
-  ILO: 'ilo',
-  Zabbix: 'zabbix',
-  Nexus: 'nexus',
-  Servers: 'servers',
+/**
+ * Which **existing** module page shows each service's tasks.
+ *
+ * Task Updates is a cross-service layer, not a parent of the services: a task
+ * tagged `DAS` surfaces on the existing DAS Onboarding page. The names differ
+ * because those modules were named before this feature existed.
+ *
+ * Mirrors `_SERVICE_MODULES` in `app/models/enums.py`; the API also serves the
+ * mapping on `/tasks/options` so the two cannot drift. Routes are never
+ * hardcoded here — they are looked up from the server's permission map.
+ */
+export const SERVICE_MODULES: Record<TaskService, string> = {
+  'Access Management': 'ACCESS_MANAGEMENT',
+  DAS: 'DAS_ONBOARDING',
+  ILO: 'ILO_INVENTORY',
+  Zabbix: 'ZABBIX',
+  Nexus: 'NEXUS',
+  Servers: 'SERVERS',
 };
 
-export function serviceFromSlug(slug: string | undefined): TaskService | undefined {
-  if (!slug) return undefined;
-  return TASK_SERVICES.find((service) => SERVICE_SLUGS[service] === slug);
+/** The service a module page shows tasks for, if it is one of the six. */
+export function serviceForModule(moduleKey: string): TaskService | undefined {
+  return TASK_SERVICES.find((service) => SERVICE_MODULES[service] === moduleKey);
 }
 
 export interface Task {
@@ -175,4 +185,37 @@ export interface Task {
 export interface TaskOptions {
   services: TaskService[];
   statuses: TaskStatus[];
+  /** Service -> the existing module whose page shows its tasks. */
+  service_modules: Record<TaskService, string>;
+}
+
+// --- Dashboard analytics ---------------------------------------------------
+
+export interface StatusCount {
+  status: TaskStatus;
+  count: number;
+}
+
+export interface ServiceCount {
+  service: TaskService;
+  /** The existing module this bar links to. */
+  module_key: string;
+  count: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  created: number;
+  completed: number;
+}
+
+/** Everything the dashboard renders, aggregated server-side in one response. */
+export interface TaskAnalytics {
+  total: number;
+  by_status: StatusCount[];
+  by_service: ServiceCount[];
+  trend: TrendPoint[];
+  trend_from: string;
+  trend_to: string;
+  recent: Task[];
 }

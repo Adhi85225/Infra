@@ -22,6 +22,7 @@ python3 -m venv .venv
 ln -sfn ../.env .env                      # one .env for the whole repo
 ./.venv/bin/alembic upgrade head
 ./.venv/bin/python -m app.db.seed         # prints the bootstrap password once
+./.venv/bin/python -m app.db.seed_dev     # optional: test accounts + sample tasks
 ./.venv/bin/uvicorn app.main:app --reload --port 8000
 
 # Frontend (second terminal)
@@ -31,6 +32,20 @@ npm run dev                               # http://localhost:5174
 ```
 
 `http://localhost:5174` is already in the default `CORS_ORIGINS`.
+
+### Development data
+
+`python -m app.db.seed_dev` creates three clearly-marked test accounts (one
+Admin, two Users) and a couple of dozen sample tasks spread across every
+service, status and a fortnight of dates, so the Task Updates table and the
+dashboard charts have something to show.
+
+It is **not** wired into container startup — `docker-entrypoint.sh` runs
+`app.db.seed` only — and it refuses to run when `ENVIRONMENT=production`.
+Passwords are generated with the same helper the user-administration flow uses
+and printed once, so no credential is committed. Re-running resets those
+passwords, prints them again, and replaces the sample tasks; anything entered by
+hand is left alone.
 
 | Service | URL |
 | ------- | --- |

@@ -147,6 +147,7 @@ MODULE_DEFINITIONS: tuple[ModuleDefinition, ...] = (
         route="/das-onboarding",
         description="Direct-attached storage onboarding workflow.",
         sort_order=50,
+        is_implemented=True,
         defaults=_defaults(),
     ),
     ModuleDefinition(
@@ -156,6 +157,7 @@ MODULE_DEFINITIONS: tuple[ModuleDefinition, ...] = (
         route="/ilo-inventory",
         description="Integrated Lights-Out management inventory.",
         sort_order=60,
+        is_implemented=True,
         defaults=_defaults(),
     ),
     ModuleDefinition(
@@ -165,6 +167,7 @@ MODULE_DEFINITIONS: tuple[ModuleDefinition, ...] = (
         route="/zabbix",
         description="Monitoring overview sourced from Zabbix.",
         sort_order=70,
+        is_implemented=True,
         defaults=_defaults(),
     ),
     ModuleDefinition(
@@ -174,6 +177,17 @@ MODULE_DEFINITIONS: tuple[ModuleDefinition, ...] = (
         route="/nexus",
         description="Nexus repository and artifact information.",
         sort_order=80,
+        is_implemented=True,
+        defaults=_defaults(),
+    ),
+    ModuleDefinition(
+        key="SERVERS",
+        name="Servers",
+        icon="\N{DESKTOP COMPUTER}\N{VARIATION SELECTOR-16}",
+        route="/servers",
+        description="Server estate and the task updates raised against it.",
+        sort_order=85,
+        is_implemented=True,
         defaults=_defaults(),
     ),
     ModuleDefinition(
