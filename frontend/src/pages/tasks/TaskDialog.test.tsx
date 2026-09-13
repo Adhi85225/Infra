@@ -72,7 +72,7 @@ describe('TaskDialog', () => {
       'ILO',
       'Zabbix',
       'Nexus',
-      'Servers',
+      'Patch Management',
     ]);
   });
 

@@ -24,24 +24,32 @@ _Integration with the existing service pages_
   appears on the existing **DAS Onboarding** page, `Zabbix` tasks on **Zabbix**,
   and so on. No service routes, pages or navigation entries were added, and
   nothing moved underneath Task Updates.
-- DAS Onboarding, ILO Inventory, Zabbix and Nexus now render their own tasks
-  instead of the "not built yet" placeholder; Access Management gained a
-  **Tasks** tab alongside Users, Roles and Audit.
+- DAS, ILO, Zabbix and Nexus now render their own tasks instead of the
+  "not built yet" placeholder; Access Management gained a **Tasks** tab
+  alongside Users, Roles and Audit.
+- Three pages were renamed to match the services they carry: *DAS Onboarding* →
+  **DAS**, *ILO Inventory* → **ILO**, *Servers* → **Patch Management**. Routes
+  are unchanged, so existing links still work.
 - Each of these shows T1 filtered to its service, with an Action column carrying
   the edit control. Administrators see every user's tasks and get a user filter;
   everyone else sees only their own — enforced by the API.
-- A **Servers** module was added to the registry: it was the one service in the
-  required list with no existing page. It follows the standard module
+- A **Patch Management** module was added to the registry: it was the one
+  service in the required list with no existing page. It follows the standard module
   conventions, so it appears in navigation, on the dashboard and in the role
   permission matrix with no authorization changes.
 
 _Dashboard analytics_
 - The existing dashboard gained a task-analytics section below the tool grid;
   the grid itself is unchanged.
-- KPI cards for the total and each status, a horizontal bar chart by service, a
-  donut by status, and a line chart of activity over time.
+- KPI cards for the total and each status, a horizontal bar chart by service
+  and a donut by status.
 - Shared Date / Service / Status filters, plus a User filter for administrators;
-  all of them drive every widget at once.
+  all of them drive every widget at once, Recent Tasks included — the counts and
+  the panel come from one response, so they always describe the same set.
+- The status filter offers **Ongoing** as well as the five real statuses:
+  everything except `Completed`. It is expressed as "not Completed" rather than
+  a list of the other four, so a status added later counts as ongoing by
+  default.
 - Recent tasks panel and service quick-access cards. Clicking a service bar or
   card opens that service's **existing** page; clicking a status or KPI opens
   Task Updates filtered.
@@ -80,6 +88,9 @@ _Authorization_
 _Database & development data_
 - Migration `0003_task_updates` adds the `tasks` table, indexed on
   `(service, user_id, task_date)` for the service pages.
+- Migration `0004_rename_servers` renames the `Servers` service value to
+  `Patch Management`. The stored value is also the label the UI shows, so
+  renaming the page alone would have left every row reading "Servers".
 - `python -m app.db.seed_dev` seeds clearly-marked test accounts and sample
   tasks for local work. It is not part of container startup, refuses to run
   against `ENVIRONMENT=production`, generates passwords rather than hardcoding

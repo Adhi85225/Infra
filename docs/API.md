@@ -247,18 +247,24 @@ Contents of the two dropdowns, served from the enums so the UI cannot drift:
 
 ```json
 {
-  "services": ["Access Management", "DAS", "ILO", "Zabbix", "Nexus", "Servers"],
+  "services": ["Access Management", "DAS", "ILO", "Zabbix", "Nexus", "Patch Management"],
   "statuses": ["Created", "Inprogress", "Onhold", "Completed", "Triage"],
+  "status_filters": ["Created", "Inprogress", "Onhold", "Completed", "Triage", "Ongoing"],
   "service_modules": {
     "Access Management": "ACCESS_MANAGEMENT",
     "DAS": "DAS_ONBOARDING",
     "ILO": "ILO_INVENTORY",
     "Zabbix": "ZABBIX",
     "Nexus": "NEXUS",
-    "Servers": "SERVERS"
+    "Patch Management": "SERVERS"
   }
 }
 ```
+
+`status_filters` is what the `status` query parameter accepts: the five real
+statuses plus **`Ongoing`**, meaning everything except `Completed`. No task is
+ever *stored* as Ongoing — it is a query over statuses, expressed as
+"not Completed" so a status added later counts as ongoing by default.
 
 `service_modules` says which **existing** module page shows each service's
 tasks. Task Updates is a cross-service layer, not a parent of the services: a
@@ -269,7 +275,7 @@ hardcoded in the client so the two cannot disagree.
 
 Query: `service`, `user_id`, `status`, `date_from`, `date_to`, `search`,
 `sort_by`, `direction` (`asc`/`desc`), `limit` (1–100, default 25), `offset`.
-Returns `Page<Task>`.
+Returns `Page<Task>`. `status` accepts `Ongoing` as well as the five statuses.
 
 **Omitting `service` is the global Task Updates view: every task, whoever owns
 it.** Supplying one is a service page, where a caller who is not a task
@@ -322,19 +328,19 @@ together, so no widget fetches for itself and the browser never receives task
 rows in order to count them.
 
 Query: `service`, `user_id`, `status`, `date_from`, `date_to`, `search` — the
-same filters as `GET /tasks`.
+same filters as `GET /tasks`, `Ongoing` included.
 
 ```json
 {
   "total": 128,
   "by_status": [{"status": "Created", "count": 18}, "…"],
   "by_service": [{"service": "DAS", "module_key": "DAS_ONBOARDING", "count": 21}, "…"],
-  "trend": [{"date": "2026-09-01", "created": 3, "completed": 1}, "…"],
-  "trend_from": "2026-08-31",
-  "trend_to": "2026-09-13",
   "recent": ["…Task…"]
 }
 ```
+
+`recent` is narrowed by **exactly** the same filters as the counts, so the
+Recent Tasks panel and the charts always describe the same set of tasks.
 
 Every status and service is present even at zero, so a KPI card or bar never
 vanishes when its count drops to nought.
@@ -342,13 +348,6 @@ vanishes when its count drops to nought.
 A **global** overview, like the Task Updates page: figures span every user, and
 `service` is an ordinary filter rather than the service-page restriction.
 `user_id` is honoured only for a task administrator.
-
-`trend` has one point per day with no gaps, so a quiet day is drawn as a dip
-rather than skipped. A single-day date filter would give a one-point line, so
-the trend widens to a 14-day window ending on that day — `trend_from`/`trend_to`
-report what it actually covers. Every other filter still applies. `completed`
-counts tasks *dated* that day that are *now* closed: there is no completion
-timestamp on a task, and inventing one would fabricate history.
 
 ### `PATCH /tasks/{task_id}` — UPDATE
 

@@ -123,7 +123,7 @@ export const TASK_SERVICES = [
   'ILO',
   'Zabbix',
   'Nexus',
-  'Servers',
+  'Patch Management',
 ] as const;
 
 export type TaskService = (typeof TASK_SERVICES)[number];
@@ -138,6 +138,18 @@ export const TASK_STATUSES = [
 ] as const;
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+/**
+ * What the status filter offers: the real statuses plus one grouping.
+ *
+ * `Ongoing` is every status except `Completed` — a query over statuses, not one
+ * a task can be in, so no row is ever stored with it.
+ */
+export const ONGOING = 'Ongoing' as const;
+
+export const TASK_STATUS_FILTERS = [...TASK_STATUSES, ONGOING] as const;
+
+export type TaskStatusFilter = (typeof TASK_STATUS_FILTERS)[number];
 
 /**
  * Which **existing** module page shows each service's tasks.
@@ -156,7 +168,7 @@ export const SERVICE_MODULES: Record<TaskService, string> = {
   ILO: 'ILO_INVENTORY',
   Zabbix: 'ZABBIX',
   Nexus: 'NEXUS',
-  Servers: 'SERVERS',
+  'Patch Management': 'SERVERS',
 };
 
 /** The service a module page shows tasks for, if it is one of the six. */
@@ -187,6 +199,8 @@ export interface TaskOptions {
   statuses: TaskStatus[];
   /** Service -> the existing module whose page shows its tasks. */
   service_modules: Record<TaskService, string>;
+  /** What the status filter accepts: the statuses plus `Ongoing`. */
+  status_filters: TaskStatusFilter[];
 }
 
 // --- Dashboard analytics ---------------------------------------------------
@@ -203,19 +217,14 @@ export interface ServiceCount {
   count: number;
 }
 
-export interface TrendPoint {
-  date: string;
-  created: number;
-  completed: number;
-}
-
 /** Everything the dashboard renders, aggregated server-side in one response. */
 export interface TaskAnalytics {
   total: number;
   by_status: StatusCount[];
   by_service: ServiceCount[];
-  trend: TrendPoint[];
-  trend_from: string;
-  trend_to: string;
+  /**
+   * The latest matching rows, narrowed by exactly the same filters as the
+   * counts — the panel and the charts always describe the same set.
+   */
   recent: Task[];
 }

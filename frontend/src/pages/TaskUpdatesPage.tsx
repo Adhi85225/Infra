@@ -10,7 +10,7 @@
 import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/auth/AuthContext';
-import { TASK_STATUSES, type TaskStatus } from '@/lib/types';
+import { TASK_STATUS_FILTERS, type TaskStatusFilter } from '@/lib/types';
 import type { DateFilter } from './tasks/taskDates';
 import { TaskTable } from './tasks/TaskTable';
 
@@ -24,7 +24,9 @@ export function TaskUpdatesPage() {
   // unrecognised is ignored rather than passed through to the API.
   const status = params.get('status');
   const date = params.get('date');
-  const initialStatus = TASK_STATUSES.includes(status as TaskStatus) ? (status as TaskStatus) : '';
+  const initialStatus = TASK_STATUS_FILTERS.includes(status as TaskStatusFilter)
+    ? (status as TaskStatusFilter)
+    : '';
   const initialDateFilter = DATE_FILTERS.includes(date as DateFilter)
     ? (date as DateFilter)
     : 'all';

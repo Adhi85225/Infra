@@ -26,15 +26,21 @@ stated requirement, and it is expressed here by ``service=None`` meaning
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import Request
-from sqlalchemy import Select, case, func, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import NotFoundError, PermissionDeniedError, ValidationError
-from app.models.enums import AuditAction, ModuleAction, TaskService, TaskStatus
+from app.models.enums import (
+    AuditAction,
+    ModuleAction,
+    TaskService,
+    TaskStatus,
+    TaskStatusFilter,
+)
 from app.models.task import Task
 from app.models.user import User
 from app.services import audit_service, permission_service
@@ -76,7 +82,7 @@ def _apply_filters(
     *,
     service: TaskService | None,
     user_id: uuid.UUID | None,
-    status: TaskStatus | None,
+    status: TaskStatusFilter | None,
     date_from: date | None,
     date_to: date | None,
     search: str | None,
@@ -86,7 +92,13 @@ def _apply_filters(
     if user_id is not None:
         stmt = stmt.where(Task.user_id == user_id)
     if status is not None:
-        stmt = stmt.where(Task.status == status)
+        if status.is_group:
+            # "Ongoing" is everything still open. Expressed as "not Completed"
+            # rather than a list of the other four, so a status added later is
+            # ongoing by default instead of quietly dropping out of the filter.
+            stmt = stmt.where(Task.status != TaskStatus.COMPLETED)
+        else:
+            stmt = stmt.where(Task.status == status.value)
     if date_from is not None:
         stmt = stmt.where(Task.task_date >= date_from)
     if date_to is not None:
@@ -140,7 +152,7 @@ async def list_tasks(
     admin: bool,
     service: TaskService | None = None,
     user_id: uuid.UUID | None = None,
-    status: TaskStatus | None = None,
+    status: TaskStatusFilter | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
     search: str | None = None,
@@ -340,11 +352,6 @@ async def update_task(
 # Dashboard analytics
 # ---------------------------------------------------------------------------
 
-#: Days of history the trend chart covers when the date filter picks a single
-#: day. A one-point line is not a trend, so the window is widened for the time
-#: axis only -- every other filter still applies.
-TREND_WINDOW_DAYS = 14
-
 #: How many rows the "Recent tasks" panel shows.
 RECENT_LIMIT = 8
 
@@ -369,7 +376,7 @@ async def analytics(
     admin: bool,
     service: TaskService | None = None,
     user_id: uuid.UUID | None = None,
-    status: TaskStatus | None = None,
+    status: TaskStatusFilter | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
     search: str | None = None,
@@ -408,46 +415,6 @@ async def analytics(
     ).all()
     by_service = {str(row[0]): int(row[1]) for row in service_rows}
 
-    # --- activity over time -------------------------------------------------
-    # A single-day filter would give a one-point line, so the trend widens to a
-    # window ending on that day. Service, status, user and search still apply.
-    trend_to = date_to or date.today()
-    if date_from is not None and date_to is not None and date_from != date_to:
-        trend_from = date_from
-    else:
-        trend_from = trend_to - timedelta(days=TREND_WINDOW_DAYS - 1)
-
-    trend_filters = {**filters, "date_from": trend_from, "date_to": trend_to}
-    trend_rows = (
-        await db.execute(
-            _apply_filters(
-                select(
-                    Task.task_date,
-                    func.count(),
-                    # "Completed" means "dated this day and now closed": there is
-                    # no completion timestamp on the row, and inventing one would
-                    # be fabricating history.
-                    func.count(case((Task.status == TaskStatus.COMPLETED, 1))),
-                )
-                .select_from(Task)
-                .join(User, User.id == Task.user_id),
-                **trend_filters,
-            )
-            .group_by(Task.task_date)
-            .order_by(Task.task_date)
-        )
-    ).all()
-    counted = {row[0]: (int(row[1]), int(row[2])) for row in trend_rows}
-
-    # Every day in the window appears, including the quiet ones -- a line that
-    # skips empty days misrepresents the shape of the activity.
-    trend = []
-    cursor = trend_from
-    while cursor <= trend_to:
-        created, completed = counted.get(cursor, (0, 0))
-        trend.append({"date": cursor, "created": created, "completed": completed})
-        cursor += timedelta(days=1)
-
     # --- recent rows ---------------------------------------------------------
     recent = (
         (
@@ -479,9 +446,6 @@ async def analytics(
             }
             for member in TaskService
         ],
-        "trend": trend,
-        "trend_from": trend_from,
-        "trend_to": trend_to,
         "recent": list(recent),
     }
 
@@ -495,5 +459,7 @@ def options() -> dict:
     return {
         "services": [service.value for service in TaskService],
         "statuses": [status.value for status in TaskStatus],
+        # What the `status` filter accepts: the real statuses plus "Ongoing".
+        "status_filters": [option.value for option in TaskStatusFilter],
         "service_modules": {service.value: service.module_key for service in TaskService},
     }

@@ -125,7 +125,7 @@ async def test_by_service_carries_the_module_each_bar_links_to(client, normal_us
     body = await _analytics(client, headers)
     modules = {row["service"]: row["module_key"] for row in body["by_service"]}
     assert modules["DAS"] == "DAS_ONBOARDING"
-    assert modules["Servers"] == "SERVERS"
+    assert modules["Patch Management"] == "SERVERS"
 
 
 async def test_counts_span_every_user(client, admin, normal_user):
@@ -217,61 +217,6 @@ async def test_filters_combine(client, admin, normal_user):
 
 
 # ---------------------------------------------------------------------------
-# Trend
-# ---------------------------------------------------------------------------
-
-
-async def test_trend_covers_a_window_and_includes_quiet_days(client, normal_user):
-    headers = await _headers(client, normal_user, USER_PASSWORD)
-    await _create(client, headers, task_date=str(TODAY), status="Completed")
-    await _create(client, headers, task_date=str(TODAY), status="Created")
-
-    body = await _analytics(client, headers)
-    trend = body["trend"]
-
-    # Contiguous days, so a gap is drawn as a dip rather than skipped.
-    assert len(trend) == 14
-    assert trend[0]["date"] == body["trend_from"]
-    assert trend[-1]["date"] == body["trend_to"]
-    dates = [point["date"] for point in trend]
-    assert dates == sorted(dates)
-
-    today_point = next(point for point in trend if point["date"] == str(TODAY))
-    assert today_point["created"] == 2
-    assert today_point["completed"] == 1
-
-
-async def test_a_single_day_filter_still_yields_a_readable_trend(client, normal_user):
-    """One point is not a trend, so the time axis widens past a one-day filter."""
-    headers = await _headers(client, normal_user, USER_PASSWORD)
-    await _create(client, headers, task_date=str(TODAY))
-
-    body = await _analytics(client, headers, f"?date_from={TODAY}&date_to={TODAY}")
-    assert body["total"] == 1
-    assert len(body["trend"]) == 14
-    assert body["trend_to"] == str(TODAY)
-
-
-async def test_an_explicit_range_is_used_as_given(client, normal_user):
-    headers = await _headers(client, normal_user, USER_PASSWORD)
-    start = TODAY - timedelta(days=3)
-    body = await _analytics(client, headers, f"?date_from={start}&date_to={TODAY}")
-
-    assert body["trend_from"] == str(start)
-    assert body["trend_to"] == str(TODAY)
-    assert len(body["trend"]) == 4
-
-
-async def test_trend_respects_the_other_filters(client, normal_user):
-    headers = await _headers(client, normal_user, USER_PASSWORD)
-    await _create(client, headers, service="DAS", task_date=str(TODAY))
-    await _create(client, headers, service="Nexus", task_date=str(TODAY))
-
-    body = await _analytics(client, headers, "?service=DAS")
-    assert sum(point["created"] for point in body["trend"]) == 1
-
-
-# ---------------------------------------------------------------------------
 # Recent tasks
 # ---------------------------------------------------------------------------
 
@@ -320,7 +265,6 @@ async def test_empty_database_reports_zeroes_rather_than_failing(client, normal_
     assert all(row["count"] == 0 for row in body["by_status"])
     assert all(row["count"] == 0 for row in body["by_service"])
     assert body["recent"] == []
-    assert len(body["trend"]) == 14
 
 
 async def test_a_view_only_caller_may_read_analytics(client, guest):
@@ -330,3 +274,115 @@ async def test_a_view_only_caller_may_read_analytics(client, guest):
 
 async def test_analytics_requires_authentication(client):
     assert (await client.get("/api/v1/tasks/analytics")).status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# The "Ongoing" status grouping
+# ---------------------------------------------------------------------------
+
+
+async def test_ongoing_matches_everything_except_completed(client, normal_user):
+    headers = await _headers(client, normal_user, USER_PASSWORD)
+    for status in ("Created", "Inprogress", "Onhold", "Triage", "Completed"):
+        await _create(client, headers, status=status, description=f"a {status} task")
+
+    body = await _analytics(client, headers, "?status=Ongoing")
+
+    assert body["total"] == 4
+    assert "Completed" not in {row["description"].split()[1] for row in body["recent"]}
+    counts = {row["status"]: row["count"] for row in body["by_status"]}
+    assert counts["Completed"] == 0
+    assert counts["Created"] == 1
+    assert counts["Inprogress"] == 1
+    assert counts["Onhold"] == 1
+    assert counts["Triage"] == 1
+
+
+async def test_ongoing_and_completed_partition_the_tasks(client, normal_user):
+    headers = await _headers(client, normal_user, USER_PASSWORD)
+    for status in ("Created", "Inprogress", "Completed", "Completed", "Triage"):
+        await _create(client, headers, status=status)
+
+    everything = (await _analytics(client, headers))["total"]
+    ongoing = (await _analytics(client, headers, "?status=Ongoing"))["total"]
+    completed = (await _analytics(client, headers, "?status=Completed"))["total"]
+
+    assert ongoing == 3
+    assert completed == 2
+    assert ongoing + completed == everything
+
+
+async def test_ongoing_combines_with_the_other_filters(client, normal_user):
+    headers = await _headers(client, normal_user, USER_PASSWORD)
+    await _create(client, headers, service="DAS", status="Inprogress")
+    await _create(client, headers, service="DAS", status="Completed")
+    await _create(client, headers, service="Nexus", status="Onhold")
+
+    body = await _analytics(client, headers, "?status=Ongoing&service=DAS")
+    assert body["total"] == 1
+    assert body["recent"][0]["status"] == "Inprogress"
+
+
+async def test_ongoing_is_accepted_by_the_task_list_too(client, normal_user):
+    """So a dashboard drill-down carrying the grouping still works."""
+    headers = await _headers(client, normal_user, USER_PASSWORD)
+    await _create(client, headers, status="Completed")
+    await _create(client, headers, status="Triage")
+
+    body = (await client.get("/api/v1/tasks?status=Ongoing", headers=headers)).json()
+    assert body["total"] == 1
+    assert body["items"][0]["status"] == "Triage"
+
+
+async def test_an_unknown_status_filter_is_rejected(client, normal_user):
+    headers = await _headers(client, normal_user, USER_PASSWORD)
+    response = await client.get("/api/v1/tasks/analytics?status=Pending", headers=headers)
+    assert response.status_code == 422
+
+
+async def test_options_publish_the_status_filter_values(client, normal_user):
+    headers = await _headers(client, normal_user, USER_PASSWORD)
+    body = (await client.get("/api/v1/tasks/options", headers=headers)).json()
+
+    assert body["statuses"] == ["Created", "Inprogress", "Onhold", "Completed", "Triage"]
+    # The filter offers one more option than a task can actually be in.
+    assert body["status_filters"] == [*body["statuses"], "Ongoing"]
+
+
+# ---------------------------------------------------------------------------
+# Recent tasks follow the dashboard filters
+# ---------------------------------------------------------------------------
+
+
+async def test_recent_reflects_every_dashboard_filter(client, admin, normal_user):
+    """The panel and the charts must always describe the same set of tasks."""
+    admin_headers = await _headers(client, admin, ADMIN_PASSWORD)
+    user_headers = await _headers(client, normal_user, USER_PASSWORD)
+
+    await _create(client, user_headers, service="DAS", status="Inprogress", description="keep me")
+    await _create(
+        client, user_headers, service="DAS", status="Completed", description="wrong status"
+    )
+    await _create(
+        client, user_headers, service="Nexus", status="Inprogress", description="wrong service"
+    )
+    await _create(
+        client, admin_headers, service="DAS", status="Inprogress", description="wrong user"
+    )
+    await _create(
+        client,
+        user_headers,
+        service="DAS",
+        status="Inprogress",
+        task_date=str(YESTERDAY),
+        description="wrong date",
+    )
+
+    body = await _analytics(
+        client,
+        admin_headers,
+        f"?service=DAS&status=Ongoing&date_from={TODAY}&date_to={TODAY}&user_id={normal_user.id}",
+    )
+
+    assert [row["description"] for row in body["recent"]] == ["keep me"]
+    assert body["total"] == len(body["recent"]) == 1

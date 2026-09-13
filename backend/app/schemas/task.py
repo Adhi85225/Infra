@@ -113,6 +113,8 @@ class TaskOptions(BaseModel):
     #: ``{"DAS": "DAS_ONBOARDING"}``. Served so the client never hardcodes which
     #: page owns a service.
     service_modules: dict[str, str]
+    #: What the ``status`` filter accepts: the statuses plus ``Ongoing``.
+    status_filters: list[str]
 
 
 class StatusCount(BaseModel):
@@ -127,15 +129,6 @@ class ServiceCount(BaseModel):
     count: int
 
 
-class TrendPoint(BaseModel):
-    date: date
-    #: Tasks dated this day.
-    created: int
-    #: Of those, the ones now in `Completed`. There is no completion timestamp
-    #: on a task, so this is "dated then, closed now" rather than "closed then".
-    completed: int
-
-
 class TaskAnalytics(BaseModel):
     """Everything the dashboard renders, aggregated in the database.
 
@@ -147,8 +140,6 @@ class TaskAnalytics(BaseModel):
     total: int
     by_status: list[StatusCount]
     by_service: list[ServiceCount]
-    trend: list[TrendPoint]
-    #: The window the trend covers, which widens past a single-day filter.
-    trend_from: date
-    trend_to: date
+    #: The latest matching rows, narrowed by exactly the same filters as the
+    #: counts above -- the panel and the charts always describe the same set.
     recent: list[TaskSummary]

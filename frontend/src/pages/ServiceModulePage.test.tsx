@@ -41,11 +41,11 @@ const ROUTES: Record<string, string> = {
 
 const NAMES: Record<string, string> = {
   ACCESS_MANAGEMENT: 'Access Management',
-  DAS_ONBOARDING: 'DAS Onboarding',
-  ILO_INVENTORY: 'ILO Inventory',
+  DAS_ONBOARDING: 'DAS',
+  ILO_INVENTORY: 'ILO',
   ZABBIX: 'Zabbix',
   NEXUS: 'Nexus',
-  SERVERS: 'Servers',
+  SERVERS: 'Patch Management',
 };
 
 function permission(moduleKey: string, level: AccessLevel): Permission {
@@ -132,20 +132,20 @@ describe('ServiceModulePage', () => {
     }
   });
 
-  it('shows DAS tasks on the existing DAS Onboarding page', async () => {
+  it('shows DAS tasks on the existing DAS page (route unchanged)', async () => {
     renderAt('/das-onboarding');
 
     // The page keeps its own existing name.
-    expect(await screen.findByRole('heading', { name: /DAS Onboarding/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /^DAS$/ })).toBeInTheDocument();
     await waitFor(() => expect(lastTaskQuery().get('service')).toBe('DAS'));
     expect(screen.getByText('Replaced a failed disk')).toBeInTheDocument();
   });
 
   it.each([
-    ['/ilo-inventory', 'ILO', 'ILO Inventory'],
+    ['/ilo-inventory', 'ILO', 'ILO'],
     ['/zabbix', 'Zabbix', 'Zabbix'],
     ['/nexus', 'Nexus', 'Nexus'],
-    ['/servers', 'Servers', 'Servers'],
+    ['/servers', 'Patch Management', 'Patch Management'],
   ])('shows %s tasks filtered to %s', async (route, service, heading) => {
     renderAt(route);
 

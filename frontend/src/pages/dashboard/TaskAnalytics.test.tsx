@@ -79,14 +79,8 @@ const ANALYTICS: Analytics = {
     { service: 'ILO', module_key: 'ILO_INVENTORY', count: 15 },
     { service: 'Zabbix', module_key: 'ZABBIX', count: 24 },
     { service: 'Nexus', module_key: 'NEXUS', count: 10 },
-    { service: 'Servers', module_key: 'SERVERS', count: 26 },
+    { service: 'Patch Management', module_key: 'SERVERS', count: 26 },
   ],
-  trend: [
-    { date: '2026-09-12', created: 4, completed: 2 },
-    { date: '2026-09-13', created: 6, completed: 3 },
-  ],
-  trend_from: '2026-09-12',
-  trend_to: '2026-09-13',
   recent: [
     {
       id: 'task-1',
@@ -194,7 +188,7 @@ describe('TaskAnalytics', () => {
       ['ILO', '15'],
       ['Zabbix', '24'],
       ['Nexus', '10'],
-      ['Servers', '26'],
+      ['Patch Management', '26'],
     ];
     for (const [service, count] of expected) {
       expect(chart.getByText(service)).toBeInTheDocument();
@@ -288,6 +282,56 @@ describe('TaskAnalytics', () => {
     });
   });
 
+  it('no longer renders the activity-over-time chart', async () => {
+    renderAnalytics();
+    await screen.findByRole('group', { name: 'Task summary' });
+
+    expect(
+      screen.queryByRole('region', { name: 'Task activity over time' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers Ongoing alongside the real statuses', async () => {
+    renderAnalytics();
+    await screen.findByRole('group', { name: 'Task summary' });
+
+    const filter = screen.getByLabelText('Filter by status') as HTMLSelectElement;
+    expect([...filter.options].map((option) => option.value)).toEqual([
+      '',
+      'Created',
+      'Inprogress',
+      'Onhold',
+      'Completed',
+      'Triage',
+      'Ongoing',
+    ]);
+    // Spelled out, because "Ongoing" alone does not say what it excludes.
+    expect(filter.options[6]!.textContent).toBe('Ongoing (not completed)');
+  });
+
+  it('sends Ongoing to the API as a status filter', async () => {
+    const user = userEvent.setup();
+    renderAnalytics();
+    await screen.findByRole('group', { name: 'Task summary' });
+
+    await user.selectOptions(screen.getByLabelText('Filter by status'), 'Ongoing');
+    await waitFor(() => expect(lastQuery().get('status')).toBe('Ongoing'));
+  });
+
+  it('re-requests everything when a filter changes, so recent tasks follow too', async () => {
+    const user = userEvent.setup();
+    renderAnalytics();
+    await screen.findByRole('group', { name: 'Task summary' });
+    expect(analyticsCalls()).toHaveLength(1);
+
+    await user.selectOptions(screen.getByLabelText('Filter by service'), 'DAS');
+
+    // One response carries the counts and the recent rows, so the panel cannot
+    // end up describing a different set from the charts.
+    await waitFor(() => expect(analyticsCalls()).toHaveLength(2));
+    expect(lastQuery().get('service')).toBe('DAS');
+  });
+
   it('hides the user filter from a non-administrator', async () => {
     renderAnalytics();
     await screen.findByRole('group', { name: 'Task summary' });
@@ -318,7 +362,6 @@ describe('TaskAnalytics', () => {
       total: 0,
       by_status: ANALYTICS.by_status.map((row) => ({ ...row, count: 0 })),
       by_service: ANALYTICS.by_service.map((row) => ({ ...row, count: 0 })),
-      trend: [{ date: '2026-09-13', created: 0, completed: 0 }],
       recent: [],
     });
     renderAnalytics();
@@ -327,7 +370,6 @@ describe('TaskAnalytics', () => {
       expect(screen.getAllByText('No task data available yet.').length).toBeGreaterThan(0),
     );
     expect(screen.getByText('No task data available for the selected filters.')).toBeInTheDocument();
-    expect(screen.getByText('No task activity recorded yet.')).toBeInTheDocument();
   });
 
   it('surfaces an API failure with a retry', async () => {

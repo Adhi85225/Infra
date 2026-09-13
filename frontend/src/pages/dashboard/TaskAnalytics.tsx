@@ -20,18 +20,19 @@ import { canManage, type PermissionMap } from '@/auth/permissions';
 import { Button } from '@/components/ui/Button';
 import { BarChart } from '@/components/ui/charts/BarChart';
 import { DonutChart } from '@/components/ui/charts/DonutChart';
-import { LineChart } from '@/components/ui/charts/LineChart';
 import { STATUS_COLORS } from '@/components/ui/charts/palette';
 import { ErrorState, Spinner } from '@/components/ui/States';
 import { ApiError, api } from '@/lib/api';
 import {
   TASK_SERVICES,
   TASK_STATUSES,
+  TASK_STATUS_FILTERS,
   type Page,
   type Permission,
   type TaskAnalytics as Analytics,
   type TaskService,
   type TaskStatus,
+  type TaskStatusFilter,
   type User,
 } from '@/lib/types';
 import { formatDate, rangeFor, type DateFilter } from '@/pages/tasks/taskDates';
@@ -110,7 +111,7 @@ export function TaskAnalytics({
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDate, setCustomDate] = useState('');
   const [service, setService] = useState<TaskService | ''>('');
-  const [status, setStatus] = useState<TaskStatus | ''>('');
+  const [status, setStatus] = useState<TaskStatusFilter | ''>('');
   const [userId, setUserId] = useState('');
 
   const [data, setData] = useState<Analytics | null>(null);
@@ -246,13 +247,15 @@ export function TaskAnalytics({
 
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value as TaskStatus | '')}
+            onChange={(event) => setStatus(event.target.value as TaskStatusFilter | '')}
             aria-label="Filter by status"
             className="field-input max-w-[10rem] py-1 text-xs"
           >
             <option value="">All statuses</option>
-            {TASK_STATUSES.map((option) => (
-              <option key={option} value={option}>{option}</option>
+            {TASK_STATUS_FILTERS.map((option) => (
+              <option key={option} value={option}>
+                {option === 'Ongoing' ? 'Ongoing (not completed)' : option}
+              </option>
             ))}
           </select>
 
@@ -340,26 +343,6 @@ export function TaskAnalytics({
               />
             </Panel>
           </div>
-
-          <Panel
-            title="Task activity over time"
-            action={
-              data && (
-                <span className="text-xs text-slate-500">
-                  {formatDate(data.trend_from)} – {formatDate(data.trend_to)}
-                </span>
-              )
-            }
-          >
-            <LineChart
-              points={data?.trend ?? []}
-              emptyLabel={
-                filtersApplied
-                  ? 'No activity in this period for the selected filters.'
-                  : 'No task activity recorded yet.'
-              }
-            />
-          </Panel>
 
           <Panel
             title="Recent tasks"

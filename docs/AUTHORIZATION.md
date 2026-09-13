@@ -78,11 +78,11 @@ Seeded on first run; **editable at runtime** through Access Management → Roles
 | Team Members | Complete | Complete | Read only | Read only |
 | **Access Management** | Complete | Complete | Read only | **None** |
 | Asset Inventory | Complete | Complete | Read only | Read only |
-| DAS Onboarding | Complete | Complete | Read only | Read only |
-| ILO Inventory | Complete | Complete | Read only | Read only |
+| DAS | Complete | Complete | Read only | Read only |
+| ILO | Complete | Complete | Read only | Read only |
 | Zabbix | Complete | Complete | Read only | Read only |
 | Nexus | Complete | Complete | Read only | Read only |
-| Servers | Complete | Complete | Read only | Read only |
+| Patch Management | Complete | Complete | Read only | Read only |
 | Cloud Information | Complete | Complete | Read only | Read only |
 | Task Updates | Complete | Complete | **Complete** | Read only |
 | Reports | Complete | Complete | Read only | Read only |
@@ -119,8 +119,8 @@ line up — Admin has it, User and Guest do not.
 | Dashboard analytics | a global overview like Task Updates — figures span every user; only a task administrator may narrow to one |
 
 "Service page" means the module page that already existed: `DAS` tasks appear on
-**DAS Onboarding** (`/das-onboarding`), `Zabbix` tasks on **Zabbix**
-(`/zabbix`), and so on. Task Updates adds no service routes of its own; the
+**DAS** (`/das-onboarding`), `Zabbix` tasks on **Zabbix** (`/zabbix`), and so
+on. Some pages were renamed but kept their routes, so a bookmark still works. Task Updates adds no service routes of its own; the
 mapping lives in `_SERVICE_MODULES` in `app/models/enums.py`.
 
 On the dashboard, `service` is an ordinary filter rather than the service-page

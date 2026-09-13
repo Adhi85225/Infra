@@ -133,7 +133,7 @@ class TaskService(StrEnum):
     ILO = "ILO"
     ZABBIX = "Zabbix"
     NEXUS = "Nexus"
-    SERVERS = "Servers"
+    SERVERS = "Patch Management"
 
     @property
     def module_key(self) -> str:
@@ -186,3 +186,24 @@ class TaskStatus(StrEnum):
     ONHOLD = "Onhold"
     COMPLETED = "Completed"
     TRIAGE = "Triage"
+
+
+class TaskStatusFilter(StrEnum):
+    """What the ``status`` query filter accepts.
+
+    The five real statuses, plus ``Ongoing`` -- everything still open, i.e. any
+    status other than ``Completed``. It lives here rather than in
+    :class:`TaskStatus` because it is a *query* over statuses, not one a task
+    can be in: no row is ever stored as "Ongoing".
+    """
+
+    CREATED = "Created"
+    INPROGRESS = "Inprogress"
+    ONHOLD = "Onhold"
+    COMPLETED = "Completed"
+    TRIAGE = "Triage"
+    ONGOING = "Ongoing"
+
+    @property
+    def is_group(self) -> bool:
+        return self is TaskStatusFilter.ONGOING

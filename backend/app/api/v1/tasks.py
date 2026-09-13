@@ -19,7 +19,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.api.deps import ActiveUser, DbSession, require_access
-from app.models.enums import ModuleAction, TaskService, TaskStatus
+from app.models.enums import ModuleAction, TaskService, TaskStatus, TaskStatusFilter
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.common import Page
@@ -71,7 +71,7 @@ async def get_analytics(
     viewer: Annotated[ActiveUser, Depends(require_access(MODULE, ModuleAction.VIEW))],
     service: TaskService | None = None,
     user_id: uuid.UUID | None = None,
-    status: TaskStatus | None = None,
+    status: TaskStatusFilter | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
     search: Annotated[str | None, Query(max_length=200)] = None,
@@ -101,9 +101,6 @@ async def get_analytics(
         total=data["total"],
         by_status=data["by_status"],
         by_service=data["by_service"],
-        trend=data["trend"],
-        trend_from=data["trend_from"],
-        trend_to=data["trend_to"],
         recent=[_summary(task, viewer=viewer, admin=admin) for task in data["recent"]],
     )
 
@@ -118,7 +115,7 @@ async def list_tasks(
     viewer: Annotated[ActiveUser, Depends(require_access(MODULE, ModuleAction.VIEW))],
     service: TaskService | None = None,
     user_id: uuid.UUID | None = None,
-    status: TaskStatus | None = None,
+    status: TaskStatusFilter | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
     search: Annotated[str | None, Query(max_length=200)] = None,

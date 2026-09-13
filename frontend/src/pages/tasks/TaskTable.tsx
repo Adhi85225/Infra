@@ -22,11 +22,12 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { useToast } from '@/components/ui/Toast';
 import { ApiError, api } from '@/lib/api';
 import {
-  TASK_STATUSES,
+  TASK_STATUS_FILTERS,
   type Page,
   type Task,
   type TaskService,
   type TaskStatus,
+  type TaskStatusFilter,
   type User,
 } from '@/lib/types';
 import { TaskDialog } from './TaskDialog';
@@ -111,7 +112,7 @@ export function TaskTable({
   service?: TaskService;
   permissionMap: PermissionMap;
   /** Opening filters, used when the dashboard drills through to a subset. */
-  initialStatus?: TaskStatus | '';
+  initialStatus?: TaskStatusFilter | '';
   initialDateFilter?: DateFilter;
   initialCustomDate?: string;
 }) {
@@ -129,7 +130,7 @@ export function TaskTable({
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<DateFilter>(initialDateFilter);
   const [customDate, setCustomDate] = useState(initialCustomDate);
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>(initialStatus);
+  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter | ''>(initialStatus);
   const [userFilter, setUserFilter] = useState('');
   const [sortBy, setSortBy] = useState('task_date');
   const [direction, setDirection] = useState<'asc' | 'desc'>('desc');
@@ -301,15 +302,15 @@ export function TaskTable({
           value={statusFilter}
           onChange={(event) => {
             setOffset(0);
-            setStatusFilter(event.target.value as TaskStatus | '');
+            setStatusFilter(event.target.value as TaskStatusFilter | '');
           }}
           aria-label="Filter by status"
           className="field-input max-w-[10rem]"
         >
           <option value="">All statuses</option>
-          {TASK_STATUSES.map((status) => (
+          {TASK_STATUS_FILTERS.map((status) => (
             <option key={status} value={status}>
-              {status}
+              {status === 'Ongoing' ? 'Ongoing (not completed)' : status}
             </option>
           ))}
         </select>

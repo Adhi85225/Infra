@@ -60,7 +60,14 @@ async def test_options_expose_the_exact_dropdown_values(client, normal_user):
     body = response.json()
     # Spelling is part of the contract: these strings are stored, filtered and
     # displayed unchanged.
-    assert body["services"] == ["Access Management", "DAS", "ILO", "Zabbix", "Nexus", "Servers"]
+    assert body["services"] == [
+        "Access Management",
+        "DAS",
+        "ILO",
+        "Zabbix",
+        "Nexus",
+        "Patch Management",
+    ]
     assert body["statuses"] == ["Created", "Inprogress", "Onhold", "Completed", "Triage"]
 
 
