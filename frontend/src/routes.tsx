@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 
 import { useAuth } from '@/auth/AuthContext';
 import { moduleForRoute } from '@/auth/permissions';
+import { serviceForModule } from '@/lib/types';
 import { Layout } from '@/components/Layout';
 import { LoadingState } from '@/components/ui/States';
 import { AccessManagementPage } from '@/pages/AccessManagementPage';
@@ -26,7 +27,9 @@ import { LoginPage } from '@/pages/LoginPage';
 import { ModulePlaceholderPage } from '@/pages/ModulePlaceholderPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { ServiceModulePage } from '@/pages/ServiceModulePage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { TaskUpdatesPage } from '@/pages/TaskUpdatesPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, initialising } = useAuth();
@@ -76,6 +79,13 @@ function ModuleRoute() {
         <AccessManagementPage />
       ) : module.module_key === 'SETTINGS' ? (
         <SettingsPage />
+      ) : module.module_key === 'TASK_UPDATES' ? (
+        <TaskUpdatesPage />
+      ) : serviceForModule(module.module_key) ? (
+        // An existing service module (DAS Onboarding, Zabbix, ...) now shows
+        // its own tasks instead of the "not built yet" placeholder. Its route
+        // and navigation entry are unchanged.
+        <ServiceModulePage />
       ) : (
         <ModulePlaceholderPage />
       )}

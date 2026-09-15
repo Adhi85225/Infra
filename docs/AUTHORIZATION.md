@@ -78,17 +78,67 @@ Seeded on first run; **editable at runtime** through Access Management → Roles
 | Team Members | Complete | Complete | Read only | Read only |
 | **Access Management** | Complete | Complete | Read only | **None** |
 | Asset Inventory | Complete | Complete | Read only | Read only |
-| DAS Onboarding | Complete | Complete | Read only | Read only |
-| ILO Inventory | Complete | Complete | Read only | Read only |
+| DAS | Complete | Complete | Read only | Read only |
+| ILO | Complete | Complete | Read only | Read only |
 | Zabbix | Complete | Complete | Read only | Read only |
 | Nexus | Complete | Complete | Read only | Read only |
+| Patch Management | Complete | Complete | Read only | Read only |
 | Cloud Information | Complete | Complete | Read only | Read only |
-| Task Updates | Complete | Complete | Read only | Read only |
+| Task Updates | Complete | Complete | **Complete** | Read only |
 | Reports | Complete | Complete | Read only | Read only |
 | **Settings** | Complete | Complete | **None** | **None** |
 
 Super Admin's column is *computed*, not stored — which is why it automatically
 covers modules that do not exist yet.
+
+Task Updates is the one module where the standard **User** role holds Complete.
+Filing and editing your own task updates is ordinary work, not an
+administrative act; seeing *other people's* tasks is gated separately, as
+described next.
+
+## Task visibility
+
+The task pages need two different questions answered, and one access level
+cannot answer both — no level grants CREATE/UPDATE without also granting
+MANAGE. So they are kept apart:
+
+| Question | Answered by |
+| -------- | ----------- |
+| What may I do? | the `TASK_UPDATES` access level — VIEW opens the pages, CREATE adds a task, UPDATE edits one |
+| Whose tasks? | **MANAGE on `ACCESS_MANAGEMENT`** — a caller holding it is a *task administrator* |
+
+Reusing the Access Management grant keeps the rule inside the existing model:
+an operator can hand task oversight to a custom role by editing that role's
+permissions, with no code change. It also means the seeded defaults already
+line up — Admin has it, User and Guest do not.
+
+| View | Rows returned |
+| ---- | ------------- |
+| Task Updates (no service filter) | every task, whoever owns it, for any caller who can view the module |
+| An existing service page | task administrator: all users, optionally filtered to one. Everyone else: their own rows only |
+| Dashboard analytics | a global overview like Task Updates — figures span every user; only a task administrator may narrow to one |
+
+"Service page" means the module page that already existed: `DAS` tasks appear on
+**DAS** (`/das-onboarding`), `Zabbix` tasks on **Zabbix** (`/zabbix`), and so
+on. Some pages were renamed but kept their routes, so a bookmark still works. Task Updates adds no service routes of its own; the
+mapping lives in `_SERVICE_MODULES` in `app/models/enums.py`.
+
+On the dashboard, `service` is an ordinary filter rather than the service-page
+restriction — it narrows an overview the caller is already entitled to see, so
+it does not scope by owner.
+
+| Action | Rule |
+| ------ | ---- |
+| Edit a task | the owner, or a task administrator. `403` otherwise |
+| File a task for another user | task administrators only; the field is ignored for everyone else |
+| Reassign a task | task administrators only |
+
+A normal user who asks a service page for `user_id=<someone else>` is silently
+pinned to their own rows rather than refused — the filter is a convenience, and
+the scope is not theirs to choose. Hiding the edit icon is *never* the boundary;
+`PATCH` re-checks ownership on every call.
+
+All of this lives in `app/services/task_service.py`.
 
 ## Resolution
 

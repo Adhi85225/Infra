@@ -7,6 +7,95 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+**Task Updates module**
+
+_Task Updates page_
+- New `/task-updates` page listing **every** team member's task updates across
+  all services, with the T1 columns: Sl. No., Date, Case/Work Order/Jira number,
+  Site Name, Description/Subject, Status, Remarks, Service and User.
+- Server-side quick search across the reference, site, description, remarks,
+  service, status and the owner's name, plus Today / Yesterday / custom-date
+  filters and a status filter.
+- Every column sorts in both directions, defaulting to newest first, and
+  combines correctly with search, filters and paging.
+
+_Integration with the existing service pages_
+- Tasks attach to the services the application **already has**: a `DAS` task
+  appears on the existing **DAS Onboarding** page, `Zabbix` tasks on **Zabbix**,
+  and so on. No service routes, pages or navigation entries were added, and
+  nothing moved underneath Task Updates.
+- DAS, ILO, Zabbix and Nexus now render their own tasks instead of the
+  "not built yet" placeholder; Access Management gained a **Tasks** tab
+  alongside Users, Roles and Audit.
+- Three pages were renamed to match the services they carry: *DAS Onboarding* →
+  **DAS**, *ILO Inventory* → **ILO**, *Servers* → **Patch Management**. Routes
+  are unchanged, so existing links still work.
+- Each of these shows T1 filtered to its service, with an Action column carrying
+  the edit control. Administrators see every user's tasks and get a user filter;
+  everyone else sees only their own — enforced by the API.
+- A **Patch Management** module was added to the registry: it was the one
+  service in the required list with no existing page. It follows the standard module
+  conventions, so it appears in navigation, on the dashboard and in the role
+  permission matrix with no authorization changes.
+
+_Dashboard analytics_
+- The existing dashboard gained a task-analytics section below the tool grid;
+  the grid itself is unchanged.
+- KPI cards for the total and each status, a horizontal bar chart by service
+  and a donut by status.
+- Shared Date / Service / Status filters, plus a User filter for administrators;
+  all of them drive every widget at once, Recent Tasks included — the counts and
+  the panel come from one response, so they always describe the same set.
+- The status filter offers **Ongoing** as well as the five real statuses:
+  everything except `Completed`. It is expressed as "not Completed" rather than
+  a list of the other four, so a status added later counts as ongoing by
+  default.
+- Recent tasks panel and service quick-access cards. Clicking a service bar or
+  card opens that service's **existing** page; clicking a status or KPI opens
+  Task Updates filtered.
+- One aggregated request (`GET /tasks/analytics`) answers the whole dashboard.
+  Counting happens in PostgreSQL, so the page does not slow down as the task
+  table grows.
+- Charts are inline SVG/CSS built on the existing palette — no chart library was
+  added, keeping the frontend's dependencies at react, react-dom and
+  react-router-dom.
+
+_Add & edit_
+- One dialog for both, so validation and the field list cannot drift.
+- Case, work-order and Jira numbers share a single generic `reference_number`
+  column rather than three mostly-empty ones.
+
+_API_
+- `GET /tasks`, `GET /tasks/{id}`, `POST /tasks`, `PATCH /tasks/{id}`,
+  `GET /tasks/options` and `GET /tasks/analytics`, governed by `TASK_UPDATES`.
+- `/tasks/options` publishes the service → existing-module mapping so the client
+  never hardcodes which page owns a service.
+- Visibility and edit rights are resolved server-side; each row carries a
+  `can_edit` flag so the UI never re-derives the rule.
+- Ownership cannot be forged: a non-administrator naming another `user_id` on
+  create, attempting a reassignment, or passing one as a filter is ignored
+  rather than obeyed.
+
+_Authorization_
+- Whether you may act comes from the `TASK_UPDATES` access level; **whose**
+  tasks you may see and edit comes from MANAGE on `ACCESS_MANAGEMENT`. No new
+  authorization concept was introduced, and task oversight stays grantable to a
+  custom role without a code change.
+- The **User** role's `TASK_UPDATES` grant is raised to Complete so standard
+  users can file and edit their own tasks. Migration `0003` applies this only
+  where the seeded default is untouched.
+
+_Database & development data_
+- Migration `0003_task_updates` adds the `tasks` table, indexed on
+  `(service, user_id, task_date)` for the service pages.
+- Migration `0004_rename_servers` renames the `Servers` service value to
+  `Patch Management`. The stored value is also the label the UI shows, so
+  renaming the page alone would have left every row reading "Servers".
+- `python -m app.db.seed_dev` seeds clearly-marked test accounts and sample
+  tasks for local work. It is not part of container startup, refuses to run
+  against `ENVIRONMENT=production`, generates passwords rather than hardcoding
+  them, and leaves hand-entered tasks alone.
+
 **Role management & dashboard authorization**
 
 _Roles_

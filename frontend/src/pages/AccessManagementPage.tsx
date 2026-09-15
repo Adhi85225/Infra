@@ -4,13 +4,17 @@ import { useAuth } from '@/auth/AuthContext';
 import { AuditTab } from './access/AuditTab';
 import { RolesTab } from './access/RolesTab';
 import { UsersTab } from './access/UsersTab';
+import { ServiceTasks } from './tasks/ServiceTasks';
 
-type Tab = 'users' | 'roles' | 'audit';
+type Tab = 'users' | 'roles' | 'audit' | 'tasks';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'users', label: 'Users' },
   { id: 'roles', label: 'Roles & permissions' },
   { id: 'audit', label: 'Audit log' },
+  // Access Management is one of the six services tasks are raised against, so
+  // its tasks live here rather than on a page of their own.
+  { id: 'tasks', label: 'Tasks' },
 ];
 
 export function AccessManagementPage() {
@@ -50,6 +54,9 @@ export function AccessManagementPage() {
       {tab === 'users' && <UsersTab permissionMap={permissionMap} />}
       {tab === 'roles' && <RolesTab permissionMap={permissionMap} />}
       {tab === 'audit' && <AuditTab />}
+      {tab === 'tasks' && (
+        <ServiceTasks service="Access Management" permissionMap={permissionMap} />
+      )}
     </div>
   );
 }

@@ -1,4 +1,9 @@
-import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import {
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from 'react';
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -21,6 +26,48 @@ export function Field({ label, error, hint, id, className = '', ...rest }: Field
       <input
         {...rest}
         id={inputId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={[error ? errorId : null, hint ? hintId : null]
+          .filter(Boolean)
+          .join(' ') || undefined}
+        className={`field-input ${error ? 'field-input-error' : ''} ${className}`}
+      />
+      {hint && (
+        <p id={hintId} className="mt-1.5 text-xs text-slate-500">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errorId} role="alert" className="mt-1.5 text-xs font-medium text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+  error?: string;
+  hint?: ReactNode;
+}
+
+/** {@link Field} for multi-line text, with the same label/error wiring. */
+export function TextArea({ label, error, hint, id, className = '', rows = 3, ...rest }: TextAreaProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const errorId = `${inputId}-error`;
+  const hintId = `${inputId}-hint`;
+
+  return (
+    <div>
+      <label htmlFor={inputId} className="field-label">
+        {label}
+      </label>
+      <textarea
+        {...rest}
+        id={inputId}
+        rows={rows}
         aria-invalid={error ? true : undefined}
         aria-describedby={[error ? errorId : null, hint ? hintId : null]
           .filter(Boolean)

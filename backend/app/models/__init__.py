@@ -11,6 +11,8 @@ from app.models.enums import (
     AccessLevel,
     AuditAction,
     ModuleAction,
+    TaskService,
+    TaskStatus,
     UserStatus,
     access_rank,
     highest,
@@ -18,6 +20,7 @@ from app.models.enums import (
 )
 from app.models.module import Module
 from app.models.permission import RoleModulePermission
+from app.models.task import Task
 from app.models.token import PasswordHistory, PasswordResetToken, Session
 from app.models.user import Role, User, UserRole
 
@@ -34,6 +37,9 @@ __all__ = [
     "Role",
     "RoleModulePermission",
     "Session",
+    "Task",
+    "TaskService",
+    "TaskStatus",
     "User",
     "UserRole",
     "UserStatus",

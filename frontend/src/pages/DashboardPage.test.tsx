@@ -1,4 +1,11 @@
-/** The dashboard renders only the tools the signed-in user may open. */
+/**
+ * The dashboard is the task overview.
+ *
+ * The module-card grid it used to open with was removed: it repeated the
+ * sidebar, and repeated the service quick-access cards in the analytics.
+ * Navigation lives in the sidebar now, so these tests assert the grid is gone
+ * and that the analytics take its place.
+ */
 
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -8,6 +15,12 @@ import type { Permission, User } from '@/lib/types';
 
 const mockAuth = vi.fn();
 vi.mock('@/auth/AuthContext', () => ({ useAuth: () => mockAuth() }));
+
+// The analytics fetch on mount; this suite is about what the dashboard
+// chooses to render, not about the charts themselves.
+vi.mock('./dashboard/TaskAnalytics', () => ({
+  TaskAnalytics: () => <p>TASK ANALYTICS</p>,
+}));
 
 const { DashboardPage } = await import('./DashboardPage');
 
@@ -38,31 +51,36 @@ function renderDashboard(permissions: Permission[]) {
 }
 
 describe('DashboardPage', () => {
-  it('shows only authorised modules', () => {
+  it('no longer renders a grid of module cards', () => {
     renderDashboard([
       permission('DASHBOARD', 'Dashboard', 'COMPLETE'),
+      permission('TASK_UPDATES', 'Task Updates', 'COMPLETE'),
       permission('ASSET_INVENTORY', 'Asset Inventory', 'COMPLETE'),
       permission('ZABBIX', 'Zabbix', 'READ_ONLY'),
-      permission('REPORTS', 'Reports', 'READ_ONLY'),
-      permission('NEXUS', 'Nexus', 'NONE'),
-      permission('CLOUD_INFORMATION', 'Cloud Information', 'NONE'),
     ]);
 
-    expect(screen.getByText('Asset Inventory')).toBeInTheDocument();
-    expect(screen.getByText('Zabbix')).toBeInTheDocument();
-    expect(screen.getByText('Reports')).toBeInTheDocument();
-
-    // Modules with no access are absent entirely -- not merely disabled.
-    expect(screen.queryByText('Nexus')).not.toBeInTheDocument();
-    expect(screen.queryByText('Cloud Information')).not.toBeInTheDocument();
+    // The sidebar navigates; the dashboard reports.
+    expect(screen.queryByRole('link', { name: /Asset Inventory/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Zabbix/ })).not.toBeInTheDocument();
   });
 
-  it('does not render a card for the dashboard itself', () => {
+  it('shows the task analytics to a user who can open Task Updates', () => {
     renderDashboard([
       permission('DASHBOARD', 'Dashboard', 'COMPLETE'),
+      permission('TASK_UPDATES', 'Task Updates', 'COMPLETE'),
+    ]);
+    expect(screen.getByText('TASK ANALYTICS')).toBeInTheDocument();
+  });
+
+  it('hides the analytics from a user who cannot open Task Updates', () => {
+    renderDashboard([
+      permission('DASHBOARD', 'Dashboard', 'COMPLETE'),
+      permission('TASK_UPDATES', 'Task Updates', 'NONE'),
       permission('ZABBIX', 'Zabbix', 'READ_ONLY'),
     ]);
-    expect(screen.queryByRole('link', { name: /Dashboard/ })).not.toBeInTheDocument();
+
+    expect(screen.queryByText('TASK ANALYTICS')).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing to show here')).toBeInTheDocument();
   });
 
   it('counts only the tools that are shown', () => {
@@ -72,17 +90,6 @@ describe('DashboardPage', () => {
       permission('NEXUS', 'Nexus', 'NONE'),
     ]);
     expect(screen.getByText(/You have access to 1 tool\./)).toBeInTheDocument();
-  });
-
-  it('links each card to the module route', () => {
-    renderDashboard([
-      permission('DASHBOARD', 'Dashboard', 'COMPLETE'),
-      permission('ASSET_INVENTORY', 'Asset Inventory', 'COMPLETE'),
-    ]);
-    expect(screen.getByRole('link', { name: /Asset Inventory/ })).toHaveAttribute(
-      'href',
-      '/asset-inventory',
-    );
   });
 
   it('shows an empty state when no tools are available', () => {

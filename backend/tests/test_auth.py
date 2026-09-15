@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from app.core.config import settings
 from app.models import Session, User
 from app.models.enums import AuditAction, UserStatus
+from app.modules.registry import MODULE_DEFINITIONS
 from tests.conftest import (
     ADMIN_PASSWORD,
     GUEST_PASSWORD,
@@ -30,7 +31,7 @@ class TestLogin:
         assert body["user"]["email"] == admin.email
         assert [role["key"] for role in body["user"]["roles"]] == ["ADMIN"]
         # The permission map ships with the session so the UI never guesses.
-        assert len(body["permissions"]) == 12
+        assert len(body["permissions"]) == len(MODULE_DEFINITIONS)
 
     async def test_login_is_case_insensitive_on_email(self, client, admin):
         response = await login(client, "ADMIN@TEST.INTERNAL", ADMIN_PASSWORD)
